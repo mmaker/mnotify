@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
+# mnotify.py
+# Copyleft (c) 2013 maker <maker@python.it>
 #
+# based on:
 # anotify.py
 # Copyright (c) 2012 magnific0 <jacco.geul@gmail.com>
 #
@@ -26,15 +29,25 @@
 # SOFTWARE.
 
 
-SCRIPT_NAME = 'anotify'
-SCRIPT_AUTHOR = 'magnific0'
-SCRIPT_VERSION = '1.0.0'
-SCRIPT_LICENSE = 'MIT'
-SCRIPT_DESC = 'Sends libnotify notifications upon events.'
+# -----------------------------------------------------------------------------
+# Imports
+# -----------------------------------------------------------------------------
+import re
+import os
+import subprocess
+from email.mime.text import MIMEText
+#import smtplib
+
+import weechat
+
+weechat.prnt('', 'mnotify: hello world!')
 
 
-# Changelog
-# 2012-09-20: v1.0.0 Forked from original and adapted for libnotify.
+SCRIPT_NAME = 'mnotify'
+SCRIPT_AUTHOR = 'maker'
+SCRIPT_VERSION = '0'
+SCRIPT_LICENSE = 'Beerware'
+SCRIPT_DESC = 'Sends mail notifications upon events.'
 
 # -----------------------------------------------------------------------------
 # Settings
@@ -53,26 +66,11 @@ SETTINGS = {
     'show_upgrade_ended': 'on',
     'sticky': 'off',
     'sticky_away': 'on',
-    'icon': '/usr/share/pixmaps/weechat.xpm',
+    'sendmail': 'msmtp',
+    'email_to': 'maker.py@gmail.com',
 }
 
 
-# -----------------------------------------------------------------------------
-# Imports
-# -----------------------------------------------------------------------------
-try:
-    import re
-    import os
-    import weechat
-    import pynotify
-    IMPORT_OK = True
-except ImportError as error:
-    IMPORT_OK = False
-    if str(error).find('weechat') != -1:
-        print('This script must be run under WeeChat.')
-        print('Get WeeChat at http://www.weechat.org.')
-    else:
-        weechat.prnt('', 'anotify: {0}'.format(error))
 
 # -----------------------------------------------------------------------------
 # Globals
@@ -174,7 +172,7 @@ def notify_highlighted_message(prefix, message):
             'Highlight',
             'Highlighted Message',
             "{0}: {1}".format(prefix, message),
-            priority=pynotify.URGENCY_CRITICAL)
+        )
 
 
 def notify_public_message_or_action(prefix, message, highlighted):
@@ -229,7 +227,7 @@ def notify_public_action_message(prefix, message, highlighted):
             'Action',
             'Public Action Message',
             '{0}: {1}'.format(prefix, message),
-            priority=pynotify.URGENCY_NORMAL)
+        )
 
 
 def notify_private_action_message(prefix, message, highlighted):
@@ -241,8 +239,7 @@ def notify_private_action_message(prefix, message, highlighted):
             'Action',
             'Private Action Message',
             '{0}: {1}'.format(prefix, message),
-            priority=pynotify.URGENCY_NORMAL)
-
+        )
 
 def notify_notice_message(prefix, message, highlighted):
     '''Notify on notice message.'''
@@ -401,23 +398,25 @@ def cb_process_message(
     return weechat.WEECHAT_RC_OK
 
 
-def a_notify(notification, title, description, priority=pynotify.URGENCY_LOW):
-    '''Returns whether notifications should be sticky.'''
-    is_away = STATE['is_away']
-    icon = STATE['icon']
-    time_out = 5000
-    if weechat.config_get_plugin('sticky') == 'on':
-        time_out = 0
-    if weechat.config_get_plugin('sticky_away') == 'on' and is_away:
-        time_out = 0
-    try:
-        pynotify.init("wee-notifier")
-        wn = pynotify.Notification(title, description, icon)
-        wn.set_urgency(priority)
-        wn.set_timeout(time_out)
-        wn.show()
-    except Exception as error:
-        weechat.prnt('', 'anotify: {0}'.format(error))
+def a_notify(notification, subject, message):
+    """Returns whether notifications should be sticky."""
+    #is_away = STATE['is_away']
+    #if weechat.config_get_plugin('sticky') == 'on':
+    #if weechat.config_get_plugin('sticky_away') == 'on' and is_away:
+    weechat.prnt('', 'sending mail: {title}'.format(title=subject))
+
+    msg = MIMEText(message)
+    msg['From'] = 'irc <irc@ipercoop>'
+    msg['To'] = '{0}'.format(weechat.config_get_plugin('email_to'))
+    msg['Subject'] = subject
+
+    p = subprocess.Popen(
+        [weechat.config_get_plugin('sendmail'),
+         weechat.config_get_plugin('email_to')],
+        stdin=subprocess.PIPE,
+
+    )
+    p.communicate(input=str(msg))
 
 
 # -----------------------------------------------------------------------------
@@ -430,8 +429,6 @@ def main():
         if not weechat.config_is_set_plugin(option):
             weechat.config_set_plugin(option, value)
     # Initialize.
-    name = "WeeChat"
-    icon = "/usr/share/pixmaps/weechat.xpm"
     notifications = [
         'Public',
         'Private',
@@ -444,7 +441,6 @@ def main():
         'DCC',
         'WeeChat'
     ]
-    STATE['icon'] = icon
     # Register hooks.
     weechat.hook_signal(
         'irc_server_connected',
@@ -458,7 +454,7 @@ def main():
     weechat.hook_print('', '', '', 1, 'cb_process_message', '')
 
 
-if __name__ == '__main__' and IMPORT_OK and weechat.register(
+if __name__ == '__main__' and weechat.register(
     SCRIPT_NAME,
     SCRIPT_AUTHOR,
     SCRIPT_VERSION,
