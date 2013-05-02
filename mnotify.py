@@ -46,7 +46,8 @@ SETTINGS = {
     'sticky': 'off',
     'sticky_away': 'on',
     'sendmail': 'msmtp',
-    'email_to': 'maker.py@gmail.com',
+    'email_to': '',
+    'email_from': 'irc <irc@localhost>'
 }
 
 
@@ -378,15 +379,10 @@ def cb_process_message(
 
 
 def a_notify(notification, subject, message):
-    """Returns whether notifications should be sticky."""
-    #is_away = STATE['is_away']
-    #if weechat.config_get_plugin('sticky') == 'on':
-    #if weechat.config_get_plugin('sticky_away') == 'on' and is_away:
-    weechat.prnt('', 'sending mail: {title}'.format(title=subject))
 
     msg = MIMEText(message)
-    msg['From'] = 'irc <irc@ipercoop>'
-    msg['To'] = '{0}'.format(weechat.config_get_plugin('email_to'))
+    msg['From'] = weechat.config_get_plugin('email_from')
+    msg['To'] = weechat.config_get_plugin('email_to')
     msg['Subject'] = subject
 
     p = subprocess.Popen(
