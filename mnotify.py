@@ -379,6 +379,10 @@ def cb_process_message(
 
 
 def a_notify(notification, subject, message):
+    if STATE['is_away'] and weechat.config_get_plugin('sticky_away') == 'off':
+        return
+    if not STATE['is_away'] and weechat.config_get_plugin('sticky') == 'off':
+        return
 
     msg = MIMEText(message)
     msg['From'] = weechat.config_get_plugin('email_from')
